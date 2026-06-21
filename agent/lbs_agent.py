@@ -578,20 +578,33 @@ def _chart_answer(question: str, tools: "Tools"):
         return None
 
 
+def _forecast_answer(question: str, tools: "Tools"):
+    """Try the forecast/anomaly layer; (verdict, spec, path) or None."""
+    try:
+        from agent.ml import forecast_answer
+        return forecast_answer(question, tools)
+    except Exception:
+        return None
+
+
 def route_question(convo: "Conversation", question: str) -> dict:
-    """Single routing entry point used by the UI (and shareable by the REPL):
-    trend -> chart, relational -> graph, else -> SQL. Records the turn + returns
-    {text, source, spec}. Numbers always originate from SQL."""
-    ca = _chart_answer(question, convo.tools)
+    """Single routing entry point (UI + REPL): forecast -> chart -> graph -> SQL.
+    Records the turn + returns {text, source, spec, path}. Numbers come from SQL."""
+    fa = _forecast_answer(question, convo.tools)     # "is X abnormal / vs expectation"
+    if fa is not None:
+        text, spec, path = fa
+        convo.add_external(question, text, source="forecast")
+        return {"text": text, "source": "forecast", "spec": spec, "path": path}
+    ca = _chart_answer(question, convo.tools)         # "show X trend"
     if ca is not None:
-        summary, spec, _path = ca
+        summary, spec, path = ca
         convo.add_external(question, summary, source="chart")
-        return {"text": summary, "source": "chart", "spec": spec}
-    g = _graph_answer(question)
+        return {"text": summary, "source": "chart", "spec": spec, "path": path}
+    g = _graph_answer(question)                       # relational (netting/entity chains)
     if g is not None:
         convo.add_external(question, g, source="graph")
-        return {"text": g, "source": "graph", "spec": None}
-    return {"text": convo.ask(question), "source": "sql", "spec": None}
+        return {"text": g, "source": "graph", "spec": None, "path": None}
+    return {"text": convo.ask(question), "source": "sql", "spec": None, "path": None}
 
 
 _HELP = """Commands:
@@ -610,8 +623,8 @@ _HELP = """Commands:
 
 def chat_repl():
     print("LBS root-cause chat. Ask about leverage balance-sheet moves.")
-    print("Trend questions ('show USD TPA trend') -> a chart spec; relational ones")
-    print("(netting/collateral/entity chains) -> the graph; everything else -> SQL.")
+    print("Auto-routed: 'is X abnormal/vs expectation' -> forecast+anomaly · 'show X")
+    print("trend' -> chart · netting/entity chains -> graph · everything else -> SQL.")
     print(_HELP)
 
     store = None
@@ -686,24 +699,22 @@ def chat_repl():
                 print("  no such conversation id\n")
             continue
 
-        # --- answer the question ----------------------------------------- #
-        ca = _chart_answer(q, convo.tools)      # trend/plot -> chart spec (grounded)
-        if ca is not None:
-            summary, _spec, path = ca
-            print(f"lbs> {summary}\n     [chart spec: {path}]\n")
-            convo.add_external(q, summary, source="chart")
+        # --- forced graph ------------------------------------------------- #
+        if q.startswith("/graph "):
+            gq = q[len("/graph "):].strip()
+            g = _graph_answer(gq)
+            if g is not None:
+                print(g + "\n"); convo.add_external(gq, g, source="graph")
+            else:
+                print("[graph] not a relational question, or graph unavailable.\n")
             continue
 
-        forced = q.startswith("/graph ")
-        gq = q[len("/graph "):].strip() if forced else q
-        g = _graph_answer(gq)
-        if g is not None:                       # relational -> Neo4j (numbers from SQL)
-            print(g + "\n")
-            convo.add_external(gq, g, source="graph")   # persisted + in memory
-            continue
-        if forced:
-            print("[graph] not a relational question, or graph unavailable.\n"); continue
-        print(f"lbs> {convo.ask(q)}\n")         # everything else -> SQL engine
+        # --- auto-route: forecast -> chart -> graph -> SQL ---------------- #
+        r = route_question(convo, q)            # records the turn (memory + persistence)
+        out = f"lbs> {r['text']}"
+        if r.get("path"):
+            out += f"\n     [chart spec: {r['path']}]"
+        print(out + "\n")
 
     if store:
         store.close()

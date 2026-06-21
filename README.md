@@ -20,15 +20,17 @@ sql/LBS_Engine.sql     deterministic engine (calendar, views, top-movers, drill-
 agent/lbs_agent.py     orchestration: wraps procs as tools, plans, narrates (grounded)
 agent/store.py         persistent conversation history (SQLite)
 agent/charts.py        chart tool: trend questions -> Vega-Lite specs (anomaly bands)
+agent/ml.py            forecast baseline + multi-method anomaly detection
 ui/                    optional Flask web UI (two-pane chat + chart canvas)
 config.py              reads connection / Ollama / Neo4j settings from .env
 graph/                 optional Neo4j layer for multi-hop relational questions
 docs/                  design plan + semantic layer
 ```
 
-Three answer routes, auto-selected by the question:
-**trend/plot** -> chart spec (`agent/charts.py`) · **relational** (netting/entity
-chains) -> Neo4j graph · **everything else** -> the SQL engine. All grounded in SQL.
+Four answer routes, auto-selected by the question (all grounded in SQL):
+**"is X abnormal / vs expectation"** -> forecast + anomaly (`agent/ml.py`) ·
+**"show X trend"** -> chart spec (`agent/charts.py`) · **relational** (netting/entity
+chains) -> Neo4j graph · **everything else** -> the SQL engine.
 
 ## Prerequisites
 - Python 3.10+ and the **ODBC Driver 17 for SQL Server**

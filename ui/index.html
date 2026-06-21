@@ -26,7 +26,7 @@
   .me  { align-self:flex-end; background:var(--user); border-bottom-right-radius:3px; }
   .bot { align-self:flex-start; background:var(--bot); border-bottom-left-radius:3px; }
   .tag { font-size:11px; color:var(--muted); margin-bottom:3px; text-transform:uppercase; letter-spacing:.04em; }
-  .tag.chart{color:#3fb950}.tag.graph{color:#a371f7}.tag.sql{color:#58a6ff}
+  .tag.chart{color:#3fb950}.tag.graph{color:#a371f7}.tag.sql{color:#58a6ff}.tag.forecast{color:#d29922}
   #composer { display:flex; gap:8px; padding:12px; border-top:1px solid var(--line); }
   #q { flex:1; }
   /* right: chart */
@@ -44,7 +44,7 @@
       <button id="new">＋ New</button>
     </header>
     <div id="msgs"></div>
-    <div class="hint">Try: "why is LBS high today?" · "show USD TPA trend" · "netting chain for Citadel LLC"</div>
+    <div class="hint">Try: "why is LBS high today?" · "is the whole book abnormal today?" · "show USD TPA trend" · "netting chain for Citadel LLC"</div>
     <div id="composer">
       <input id="q" placeholder="Ask about leverage balance-sheet moves…" autofocus />
       <button id="send">Send</button>

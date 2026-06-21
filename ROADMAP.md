@@ -36,14 +36,16 @@ Legend: ✅ done · 🟡 in progress · ◻️ planned
   per message. *Follow-on ◻️: richer chart types (waterfall/treemap/Sankey) and
   click-a-contributor → drill.*
 
-## Phase 2 — Smart baselines (ML) ◻️
-*Goal: "high vs **expectation**", not just vs yesterday. + quarter-end resolution.*
-- ◻️ Forecast baseline (ETS/Prophet) → expected level + confidence band.
-- ◻️ Multi-method anomaly (z-score ✅ + IQR + MAD + IsolationForest + STL-residual),
-  daily & month-end, quarter-end-aware; agreement vote to cut false positives.
-- ◻️ Changepoint detection (ruptures) on counterparty/desk/currency trends.
-- ◻️ Seasonality/STL (window-dressing aware).
-- ◻️ Anomaly → auto-explanation (flag triggers drill + attribution) + morning digest.
+## Phase 2 — Smart baselines (ML) 🟡
+*Goal: "high vs **expectation**", not just vs yesterday.* (`agent/ml.py`)
+- ✅ Forecast baseline (Holt level+trend, pure-Python — no heavy deps) → expected value
+  + residual band + "surprise" in σ.
+- ✅ Multi-method anomaly ensemble (z-score + IQR + MAD + forecast-residual), daily &
+  month-end; flagged when ≥2 methods agree.
+- ✅ Changepoint detection (largest material mean-shift).
+- ✅ Auto-routed in chat ("is X abnormal / vs expectation") with an actual-vs-expected chart.
+- ◻️ Seasonality/STL (quarter-end window-dressing aware) + IsolationForest.
+- ◻️ Anomaly → auto-explanation (flag auto-triggers drill/attribution) + morning digest.
 
 ## Phase 3 — Market-data / FX enrichment ◻️
 *Goal: the analytical crown jewel — explain WHY, not just WHERE.*
