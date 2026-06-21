@@ -66,11 +66,16 @@ Legend: ✅ done · 🟡 in progress · ◻️ planned
   daily/month-end draft from total move + top line items + drill path + anomaly digest.
 - ◻️ RAG over large doc corpora (embeddings) — current is single-doc context injection.
 
-## Phase 5 — Agentic & self-serve ◻️
-- ◻️ Iterative agent loop (re-query/drill until the residual is explained).
-- ◻️ Multi-agent: planner · SQL-analyst · graph-analyst · ML-analyst · narrator · critic.
-- ◻️ Grounded free-form text-to-SQL (semantic-layer + whitelist constrained, read-only).
-- ◻️ Eval harness: golden questions with known answers (regression-test before trust).
+## Phase 5 — Agentic & self-serve 🟡
+- ✅ Iterative deep root-cause (`agent/explain.py`, `/explain`): drills LineItem → Business
+  → Counterparty → Currency → ISIN, surfacing the **residual at each level**.
+- ✅ Grounded text-to-SQL (`agent/text2sql.py`, `/sql`): read-only SELECT, strictly
+  validated (SELECT-only, keyword + object whitelist, row/time caps) — for the
+  "how many / list / average" long tail.
+- ✅ Eval harness (`agent/eval.py`, `/eval`): 8 golden invariants (reconciliation, drill,
+  FX, anomaly, series, digest, SQL guard) — **8/8 green**.
+- ◻️ LLM-driven multi-agent loop (planner · analysts · critic) — the current loop is
+  deterministic; an LLM ReAct controller is the future option.
 
 ## Cross-cutting ◻️
 - ◻️ Semantic layer as code (powers safe text-to-SQL + renames).

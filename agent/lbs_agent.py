@@ -614,6 +614,24 @@ def _commentary_answer(question: str, tools: "Tools"):
         return None
 
 
+def _explain_answer(question: str, tools: "Tools"):
+    """Try iterative deep root-cause ('deep dive / root cause'); (text, None, None) or None."""
+    try:
+        from agent.explain import explain_answer
+        return explain_answer(question, tools)
+    except Exception:
+        return None
+
+
+def _text2sql_answer(question: str, tools: "Tools", force: bool = False):
+    """Try grounded text-to-SQL (aggregate long-tail); (text, None, None) or None."""
+    try:
+        from agent.text2sql import text2sql_answer
+        return text2sql_answer(question, tools, force=force)
+    except Exception:
+        return None
+
+
 def route_question(convo: "Conversation", question: str) -> dict:
     """Single routing entry point (UI + REPL): digest -> forecast -> chart -> graph -> SQL.
     Records the turn + returns {text, source, spec, path}. Numbers come from SQL."""
@@ -622,6 +640,11 @@ def route_question(convo: "Conversation", question: str) -> dict:
         text, spec, path = co
         convo.add_external(question, text, source="commentary")
         return {"text": text, "source": "commentary", "spec": spec, "path": path}
+    eo = _explain_answer(question, convo.tools)       # "deep dive / root cause"
+    if eo is not None:
+        text, spec, path = eo
+        convo.add_external(question, text, source="explain")
+        return {"text": text, "source": "explain", "spec": spec, "path": path}
     da = _digest_answer(question, convo.tools)        # "anomaly digest / what's unusual"
     if da is not None:
         text, spec, path = da
@@ -646,6 +669,11 @@ def route_question(convo: "Conversation", question: str) -> dict:
     if g is not None:
         convo.add_external(question, g, source="graph")
         return {"text": g, "source": "graph", "spec": None, "path": None}
+    ta = _text2sql_answer(question, convo.tools)      # aggregate long-tail (how many/list/avg)
+    if ta is not None:
+        text, spec, path = ta
+        convo.add_external(question, text, source="sql-gen")
+        return {"text": text, "source": "sql-gen", "spec": None, "path": None}
     return {"text": convo.ask(question), "source": "sql", "spec": None, "path": None}
 
 
@@ -661,6 +689,9 @@ _HELP = """Commands:
   /digest [month]  scan dimensions for today's anomalies vs expectation
   /doc <path>      reconcile a desk note's claims against the data
   /commentary [m]  auto-draft the daily (or month-end) LBS commentary
+  /explain [scope] iterative deep root-cause with residuals
+  /sql <question>  grounded read-only text-to-SQL for the long tail
+  /eval            run the golden-invariant checks
   /help            show this help
   /exit            quit
 """
@@ -732,6 +763,35 @@ def chat_repl():
                 print(c + "\n"); convo.add_external("/commentary", c, source="commentary")
             except Exception as e:
                 print(f"  commentary failed: {e}\n")
+            continue
+        if q == "/explain" or q.startswith("/explain "):
+            scope = q[len("/explain "):].strip() if q.startswith("/explain ") else ""
+            try:
+                from agent.explain import deep_explain
+                from agent.charts import extract_filters
+                filt = extract_filters(scope, convo.tools) if scope else {}
+                txt = deep_explain(convo.tools, filt)
+                print(txt + "\n"); convo.add_external(q, txt, source="explain")
+            except Exception as e:
+                print(f"  explain failed: {e}\n")
+            continue
+        if q.startswith("/sql "):
+            try:
+                from agent.text2sql import text2sql_answer
+                r = text2sql_answer(q[5:].strip(), convo.tools, force=True)
+                txt = r[0] if r else "[sql] no result"
+                print(txt + "\n"); convo.add_external(q, txt, source="sql-gen")
+            except Exception as e:
+                print(f"  sql failed: {e}\n")
+            continue
+        if q == "/eval":
+            try:
+                import subprocess
+                print(subprocess.run([sys.executable, os.path.join(
+                    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                    "agent", "eval.py")], capture_output=True, text=True).stdout)
+            except Exception as e:
+                print(f"  eval failed: {e}\n")
             continue
 
         # --- persistence commands ---------------------------------------- #

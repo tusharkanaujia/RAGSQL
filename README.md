@@ -23,6 +23,9 @@ agent/charts.py        chart tool: trend questions -> Vega-Lite specs (anomaly b
 agent/ml.py            forecast baseline + multi-method anomaly detection + digest
 agent/attribution.py   FX-isolation attribution (FX vs non-FX, reconciles)
 agent/docs_ground.py   document grounding (claim reconciliation) + auto-commentary
+agent/explain.py       iterative deep root-cause (residual-surfacing drill)
+agent/text2sql.py      grounded read-only text-to-SQL (strict guardrails)
+agent/eval.py          golden-invariant regression harness (python agent/eval.py)
 ui/                    optional Flask web UI (two-pane chat + chart canvas)
 config.py              reads connection / Ollama / Neo4j settings from .env
 graph/                 optional Neo4j layer for multi-hop relational questions
@@ -31,9 +34,11 @@ docs/                  design plan + semantic layer
 
 Answer routes, auto-selected by the question (all grounded in SQL):
 **"what's unusual today"** -> anomaly digest · **"how much of the move is FX"** -> FX
-isolation (`agent/attribution.py`) · **"is X abnormal / vs expectation"** -> forecast +
-anomaly (`agent/ml.py`) · **"show X trend"** -> chart spec (`agent/charts.py`) ·
-**relational** (netting/entity chains) -> Neo4j graph · **everything else** -> SQL.
+isolation (`agent/attribution.py`) · **"deep dive / root cause"** -> iterative
+explain (`agent/explain.py`) · **"is X abnormal"** -> forecast+anomaly (`agent/ml.py`) ·
+**"show X trend"** -> chart (`agent/charts.py`) · **relational** -> Neo4j graph ·
+**"how many / list / avg"** -> grounded text-to-SQL (`agent/text2sql.py`) ·
+**"why is X high"** -> the SQL decomposition engine.
 
 ## Prerequisites
 - Python 3.10+ and the **ODBC Driver 17 for SQL Server**
@@ -83,6 +88,9 @@ python agent/lbs_agent.py
 #   /digest [month]            scan for today's anomalies
 #   /doc <path>                reconcile a desk note vs the data
 #   /commentary [month]        auto-draft the daily commentary
+#   /explain [scope]           iterative deep root-cause (residuals)
+#   /sql <question>            grounded read-only text-to-SQL
+#   /eval                      run the golden-invariant checks
 #   /history   /reset   /graph <q>   /help   /exit
 ```
 Each conversation is saved and auto-titled from its first question; `/list` then
