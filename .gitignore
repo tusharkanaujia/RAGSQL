@@ -29,3 +29,6 @@ Thumbs.db
 *.db
 *.sqlite
 *.sqlite3
+
+# Generated chart specs
+charts_out/

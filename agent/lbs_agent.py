@@ -102,7 +102,7 @@ class Tools:
     def dim_values(self, dimension: str, top: int = 30) -> list[str]:
         """Distinct values of a whitelisted dimension — vocabulary for the planner so it
         can map a user's words to an EXACT filter value (e.g. 'FIF')."""
-        if dimension not in (set(FOCUS_DIMS) | {"NettingSetId"}):
+        if dimension not in set(FILTERABLE_DIMS):
             return []                                # whitelist guard (col is interpolated)
         rows = self.db.proc(
             f"SELECT DISTINCT TOP (?) [{dimension}] AS v "
@@ -252,6 +252,11 @@ NARRATOR_SYS = (
 # --------------------------------------------------------------------------- #
 FOCUS_DIMS = ["LineItem", "Business", "SubBusiness", "SubDivision", "LegalEntity",
               "Counterparty", "Currency", "ISIN"]
+
+# Columns a user may filter a chart/series by — all exist in vwFactLBS_Enriched.
+FILTERABLE_DIMS = FOCUS_DIMS + ["LBSSubCategory", "CountryOfRisk", "IssuerName",
+                                "BalanceClassification", "AssetLiability",
+                                "BankLevyStatus", "ClientHouseIndicator", "NettingSetId"]
 
 
 @dataclass
@@ -564,6 +569,15 @@ def _graph_answer(question: str) -> str | None:
         return None
 
 
+def _chart_answer(question: str, tools: "Tools"):
+    """Try the chart tool; returns (summary, spec_path) for a trend question, else None."""
+    try:
+        from agent.charts import chart_answer
+        return chart_answer(question, tools)
+    except Exception:
+        return None
+
+
 _HELP = """Commands:
   /new [title]     start a new saved conversation
   /list            list saved conversations
@@ -580,7 +594,8 @@ _HELP = """Commands:
 
 def chat_repl():
     print("LBS root-cause chat. Ask about leverage balance-sheet moves.")
-    print("Relational questions (netting/collateral/entity chains) auto-route to the graph.")
+    print("Trend questions ('show USD TPA trend') -> a chart spec; relational ones")
+    print("(netting/collateral/entity chains) -> the graph; everything else -> SQL.")
     print(_HELP)
 
     store = None
@@ -656,6 +671,13 @@ def chat_repl():
             continue
 
         # --- answer the question ----------------------------------------- #
+        ca = _chart_answer(q, convo.tools)      # trend/plot -> chart spec (grounded)
+        if ca is not None:
+            summary, path = ca
+            print(f"lbs> {summary}\n     [chart spec: {path}]\n")
+            convo.add_external(q, summary, source="chart")
+            continue
+
         forced = q.startswith("/graph ")
         gq = q[len("/graph "):].strip() if forced else q
         g = _graph_answer(gq)

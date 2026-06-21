@@ -28,8 +28,9 @@ Legend: ✅ done · 🟡 in progress · ◻️ planned
 - ✅ **1a. Persistent chat history** (SQLite, `agent/store.py`): save / list / resume /
   rename / delete conversations across restarts; auto-titled from the first question;
   graph turns persisted too.
-- ◻️ 1b. **Chart-spec tool** — a tool that returns a Vega-Lite/Plotly spec so "show USD
-  TPA trend" produces a chart, not just numbers.
+- ✅ 1b. **Chart-spec tool** (`agent/charts.py`): trend questions ("show USD TPA trend",
+  "plot derivatives over time", "Citadel month-end") → a grounded time series with
+  z-score **anomaly bands** + a **Vega-Lite** spec; auto-routed in chat.
 - ◻️ 1c. **Two-pane UI** — chat + live chart canvas (waterfall for attribution,
   time-series with anomaly bands, treemap for concentration, Sankey for
   netting/collateral). Click-a-contributor → drill.

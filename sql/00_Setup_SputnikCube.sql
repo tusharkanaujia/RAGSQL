@@ -266,7 +266,9 @@ INSERT #slice VALUES
  (30, 9,1,2,3,4,5,1,  700000000),   -- EQ/Prime MarginLoan Citadel Apple (anomaly target)
  (31, 7,1,2,4,6,3,1,  500000000),   -- EQ/Prime CashPB Millennium Tesla
  (32,-1,-1,-1,-1,-1,-1,1, 50000000),-- Unmatched (must be filtered out)
- (33,-1, 1, 2, 3, 4, 1,1, 30000000);-- Unmatched
+ (33,-1, 1, 2, 3, 4, 1,1, 30000000),-- Unmatched
+ (34,10, 3, 2, 5, 4, 5,1, 350000000),-- TPA, Cash Equities, BlackRock, Apple (USD)
+ (35,10, 3, 4, 3, 6, 5,1, 280000000);-- TPA, Cash Equities, Citadel,   Tesla (USD)
 
 INSERT SputnikCube.FactLBS
  (BusinessDate,AssetKey,BalanceClassificationKey,CpNodeKey,EntityKey,MeasureTypeKey,

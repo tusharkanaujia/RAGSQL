@@ -18,10 +18,16 @@ attribution; a local LLM (Ollama) narrates the results. Numbers come only from S
 ```
 sql/LBS_Engine.sql     deterministic engine (calendar, views, top-movers, drill-down, time-series, cube)
 agent/lbs_agent.py     orchestration: wraps procs as tools, plans, narrates (grounded)
+agent/store.py         persistent conversation history (SQLite)
+agent/charts.py        chart tool: trend questions -> Vega-Lite specs (anomaly bands)
 config.py              reads connection / Ollama / Neo4j settings from .env
 graph/                 optional Neo4j layer for multi-hop relational questions
 docs/                  design plan + semantic layer
 ```
+
+Three answer routes, auto-selected by the question:
+**trend/plot** -> chart spec (`agent/charts.py`) · **relational** (netting/entity
+chains) -> Neo4j graph · **everything else** -> the SQL engine. All grounded in SQL.
 
 ## Prerequisites
 - Python 3.10+ and the **ODBC Driver 17 for SQL Server**
