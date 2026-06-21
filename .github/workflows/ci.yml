@@ -1,0 +1,26 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      # pyodbc needs the unixODBC headers to install on Linux runners
+      - name: Install ODBC headers
+        run: sudo apt-get update && sudo apt-get install -y unixodbc-dev
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Compile all sources
+        run: python -m compileall agent graph ui tests
+      - name: Offline tests (no DB / no LLM)
+        run: python tests/test_offline.py
+# Note: agent/eval.py runs the full data-dependent invariants but needs a live
+# SputnikCube database, so it is not run here (GitHub runners have no SQL Server).
