@@ -587,9 +587,23 @@ def _forecast_answer(question: str, tools: "Tools"):
         return None
 
 
+def _digest_answer(question: str, tools: "Tools"):
+    """Try the morning anomaly digest; (text, None, None) or None."""
+    try:
+        from agent.ml import digest_answer
+        return digest_answer(question, tools)
+    except Exception:
+        return None
+
+
 def route_question(convo: "Conversation", question: str) -> dict:
-    """Single routing entry point (UI + REPL): forecast -> chart -> graph -> SQL.
+    """Single routing entry point (UI + REPL): digest -> forecast -> chart -> graph -> SQL.
     Records the turn + returns {text, source, spec, path}. Numbers come from SQL."""
+    da = _digest_answer(question, convo.tools)        # "anomaly digest / what's unusual"
+    if da is not None:
+        text, spec, path = da
+        convo.add_external(question, text, source="digest")
+        return {"text": text, "source": "digest", "spec": spec, "path": path}
     fa = _forecast_answer(question, convo.tools)     # "is X abnormal / vs expectation"
     if fa is not None:
         text, spec, path = fa
@@ -616,6 +630,7 @@ _HELP = """Commands:
   /history         show this conversation's turns
   /reset           clear in-memory context (keeps the saved conversation)
   /graph <q>       force the question to the Neo4j graph layer
+  /digest [month]  scan dimensions for today's anomalies vs expectation
   /help            show this help
   /exit            quit
 """
@@ -659,6 +674,14 @@ def chat_repl():
             for i, t in enumerate(convo.turns, 1):
                 print(f"  {i}. Q: {t.question}\n     {t.digest}")
             print(); continue
+        if q == "/digest" or q.startswith("/digest "):
+            res = "MONTHEND" if "month" in q.lower() else "DAILY"
+            try:
+                from agent.ml import anomaly_digest
+                print(anomaly_digest(convo.tools, res) + "\n")
+            except Exception as e:
+                print(f"(digest unavailable: {e})\n")
+            continue
 
         # --- persistence commands ---------------------------------------- #
         if store and (q == "/new" or q.startswith("/new ")):

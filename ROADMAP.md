@@ -44,8 +44,9 @@ Legend: ✅ done · 🟡 in progress · ◻️ planned
   month-end; flagged when ≥2 methods agree.
 - ✅ Changepoint detection (largest material mean-shift).
 - ✅ Auto-routed in chat ("is X abnormal / vs expectation") with an actual-vs-expected chart.
-- ◻️ Seasonality/STL (quarter-end window-dressing aware) + IsolationForest.
-- ◻️ Anomaly → auto-explanation (flag auto-triggers drill/attribution) + morning digest.
+- ✅ Anomaly → **auto-explanation** (flag auto-triggers the drill: "Driven by SFTs +£605.7m…").
+- ✅ **Morning digest** (`/digest`): scans dimensions, ranks today's outliers vs expectation.
+- ◻️ Seasonality/STL (quarter-end window-dressing aware) + IsolationForest (needs sklearn).
 
 ## Phase 3 — Market-data / FX enrichment ◻️
 *Goal: the analytical crown jewel — explain WHY, not just WHERE.*

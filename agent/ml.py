@@ -180,6 +180,29 @@ def is_forecast_request(question: str) -> bool:
     return any(w in question.lower() for w in _FORECAST_WORDS)
 
 
+def _explain_drivers(tools: Tools, filters: dict, resolution: str) -> str:
+    """Auto-explanation: when something is anomalous, drill to the top drivers of the
+    day-over-day (or month-end) move so the flag says WHY, not just THAT."""
+    try:
+        cur = tools.latest_date()
+        prior = (tools.prior_month_end(cur) if resolution == "MONTHEND"
+                 else tools.prior_date(cur))
+        if not prior:
+            return ""
+        fcol = next(iter(filters)) if len(filters) == 1 else None
+        fval = filters.get(fcol) if fcol else None
+        breakdown = "Business" if fcol == "LineItem" else "LineItem"
+        movers = tools.top_movers(breakdown, cur, prior, top_n=3,
+                                  filter_col=fcol, filter_val=fval)
+        top = [m for m in movers if (m["Delta"] or 0)][:2]
+        if not top:
+            return ""
+        return ("Driven by " +
+                ", ".join(f"{m['Dim']} {fmt_gbp(m['Delta'], signed=True)}" for m in top) + ".")
+    except Exception:
+        return ""
+
+
 def forecast_answer(question: str, tools: Tools):
     """Return (verdict_text, vega_spec, spec_path) for an expectation/anomaly question,
     or None if it isn't one."""
@@ -191,9 +214,56 @@ def forecast_answer(question: str, tools: Tools):
     if len(rows) < 4:
         return f"{_label(filters)}: not enough history to assess.", None, None
     a = assess_series(rows, filters, resolution)
+    text = verdict(a)
+    if a["is_anomaly"]:                              # auto-explanation
+        why = _explain_drivers(tools, filters, resolution)
+        if why:
+            text += " " + why
     spec = forecast_spec(a, filters)
     path = _write_spec(spec, {**filters, "_": "forecast"})
-    return verdict(a), spec, path
+    return text, spec, path
+
+
+# --------------------------------------------------------------------------- #
+# Morning anomaly digest — scan dimensions, rank today's outliers vs expectation
+# --------------------------------------------------------------------------- #
+_DIGEST_WORDS = ("digest", "what's unusual", "whats unusual", "what is unusual",
+                 "anomaly report", "anomalies today", "what stands out",
+                 "scan for anomalies", "morning report", "what changed")
+
+
+def is_digest_request(question: str) -> bool:
+    return any(w in question.lower() for w in _DIGEST_WORDS)
+
+
+def anomaly_digest(tools: Tools, resolution: str = "DAILY",
+                   dims=("Business", "LineItem", "Currency", "Counterparty"),
+                   top: int = 6) -> str:
+    found = []
+    for dim in dims:
+        for val in tools.dim_values(dim, top=50):
+            rows = series_data(tools.db, {dim: val}, resolution)
+            if len(rows) < 4:
+                continue
+            a = assess_series(rows, {dim: val}, resolution)
+            if a["is_anomaly"] and a["surprise_sigma"] is not None:
+                found.append((abs(a["surprise_sigma"]), dim, val, a))
+    found.sort(key=lambda x: x[0], reverse=True)
+    res = "month-end" if resolution == "MONTHEND" else "daily"
+    if not found:
+        return f"Anomaly digest ({res}): nothing materially off expectation."
+    lines = [f"Anomaly digest ({res}) — top {min(top, len(found))} vs expectation:"]
+    for sigma, dim, val, a in found[:top]:
+        lines.append(f"  • {val} ({dim}): {fmt_gbp(a['actual'])} vs exp "
+                     f"{fmt_gbp(a['expected'])} — {sigma:.1f}σ {a['direction']}, "
+                     f"{a['n_flagged']}/{len(a['methods'])} methods.")
+    return "\n".join(lines)
+
+
+def digest_answer(question: str, tools: Tools):
+    if not is_digest_request(question):
+        return None
+    return anomaly_digest(tools, _resolution(question)), None, None
 
 
 # --------------------------------------------------------------------------- #
