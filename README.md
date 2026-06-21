@@ -20,7 +20,9 @@ sql/LBS_Engine.sql     deterministic engine (calendar, views, top-movers, drill-
 agent/lbs_agent.py     orchestration: wraps procs as tools, plans, narrates (grounded)
 agent/store.py         persistent conversation history (SQLite)
 agent/charts.py        chart tool: trend questions -> Vega-Lite specs (anomaly bands)
-agent/ml.py            forecast baseline + multi-method anomaly detection
+agent/ml.py            forecast baseline + multi-method anomaly detection + digest
+agent/attribution.py   FX-isolation attribution (FX vs non-FX, reconciles)
+agent/docs_ground.py   document grounding (claim reconciliation) + auto-commentary
 ui/                    optional Flask web UI (two-pane chat + chart canvas)
 config.py              reads connection / Ollama / Neo4j settings from .env
 graph/                 optional Neo4j layer for multi-hop relational questions
@@ -78,6 +80,9 @@ python agent/lbs_agent.py
 #
 # conversation commands:
 #   /new [title]   /list   /open <id>   /title <text>   /delete <id>
+#   /digest [month]            scan for today's anomalies
+#   /doc <path>                reconcile a desk note vs the data
+#   /commentary [month]        auto-draft the daily commentary
 #   /history   /reset   /graph <q>   /help   /exit
 ```
 Each conversation is saved and auto-titled from its first question; `/list` then

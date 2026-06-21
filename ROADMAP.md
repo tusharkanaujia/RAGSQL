@@ -58,10 +58,13 @@ Legend: ✅ done · 🟡 in progress · ◻️ planned
   collateral are already available as line-item / balance-classification splits.)
 - ◻️ Real price + market-data feed (replace the stub).
 
-## Phase 4 — Document grounding & commentary ◻️
-- ◻️ RAG over policy/desk notes; reconcile claims vs data (confirmed / contradicted /
-  unexplained). Treat doc text as data, not instructions.
-- ◻️ Auto-commentary: post-batch daily LBS draft from cube + anomalies + market data.
+## Phase 4 — Document grounding & commentary ✅  (`agent/docs_ground.py`)
+- ✅ **Document grounding** (`/doc <path>`): the LLM extracts a note's claims, the engine
+  reconciles each vs SQL (confirmed / partly / contradicted / unverified) with amount
+  checks. Document treated as data, not instructions (prompt-injection guard).
+- ✅ **Auto-commentary** (`/commentary`, or "draft the daily commentary"): deterministic
+  daily/month-end draft from total move + top line items + drill path + anomaly digest.
+- ◻️ RAG over large doc corpora (embeddings) — current is single-doc context injection.
 
 ## Phase 5 — Agentic & self-serve ◻️
 - ◻️ Iterative agent loop (re-query/drill until the residual is explained).

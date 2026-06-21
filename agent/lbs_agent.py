@@ -605,9 +605,23 @@ def _fx_answer(question: str, tools: "Tools"):
         return None
 
 
+def _commentary_answer(question: str, tools: "Tools"):
+    """Try auto-commentary ('draft the daily commentary'); (text, None, None) or None."""
+    try:
+        from agent.docs_ground import commentary_answer
+        return commentary_answer(question, tools)
+    except Exception:
+        return None
+
+
 def route_question(convo: "Conversation", question: str) -> dict:
     """Single routing entry point (UI + REPL): digest -> forecast -> chart -> graph -> SQL.
     Records the turn + returns {text, source, spec, path}. Numbers come from SQL."""
+    co = _commentary_answer(question, convo.tools)    # "draft the daily commentary"
+    if co is not None:
+        text, spec, path = co
+        convo.add_external(question, text, source="commentary")
+        return {"text": text, "source": "commentary", "spec": spec, "path": path}
     da = _digest_answer(question, convo.tools)        # "anomaly digest / what's unusual"
     if da is not None:
         text, spec, path = da
@@ -645,6 +659,8 @@ _HELP = """Commands:
   /reset           clear in-memory context (keeps the saved conversation)
   /graph <q>       force the question to the Neo4j graph layer
   /digest [month]  scan dimensions for today's anomalies vs expectation
+  /doc <path>      reconcile a desk note's claims against the data
+  /commentary [m]  auto-draft the daily (or month-end) LBS commentary
   /help            show this help
   /exit            quit
 """
@@ -695,6 +711,27 @@ def chat_repl():
                 print(anomaly_digest(convo.tools, res) + "\n")
             except Exception as e:
                 print(f"(digest unavailable: {e})\n")
+            continue
+        if q.startswith("/doc "):
+            path = q[5:].strip()
+            try:
+                from agent.docs_ground import ground_document
+                with open(path, encoding="utf-8") as fh:
+                    rep = ground_document(convo.tools, fh.read())
+                print(rep + "\n"); convo.add_external(f"/doc {path}", rep, source="doc")
+            except FileNotFoundError:
+                print(f"  file not found: {path}\n")
+            except Exception as e:
+                print(f"  doc grounding failed: {e}\n")
+            continue
+        if q == "/commentary" or q.startswith("/commentary "):
+            res = "MONTHEND" if "month" in q.lower() else "DAILY"
+            try:
+                from agent.docs_ground import auto_commentary
+                c = auto_commentary(convo.tools, res)
+                print(c + "\n"); convo.add_external("/commentary", c, source="commentary")
+            except Exception as e:
+                print(f"  commentary failed: {e}\n")
             continue
 
         # --- persistence commands ---------------------------------------- #
