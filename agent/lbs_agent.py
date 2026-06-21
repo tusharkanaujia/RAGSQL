@@ -596,6 +596,15 @@ def _digest_answer(question: str, tools: "Tools"):
         return None
 
 
+def _fx_answer(question: str, tools: "Tools"):
+    """Try FX-isolation attribution; (text, spec, path) or None."""
+    try:
+        from agent.attribution import fx_answer
+        return fx_answer(question, tools)
+    except Exception:
+        return None
+
+
 def route_question(convo: "Conversation", question: str) -> dict:
     """Single routing entry point (UI + REPL): digest -> forecast -> chart -> graph -> SQL.
     Records the turn + returns {text, source, spec, path}. Numbers come from SQL."""
@@ -604,6 +613,11 @@ def route_question(convo: "Conversation", question: str) -> dict:
         text, spec, path = da
         convo.add_external(question, text, source="digest")
         return {"text": text, "source": "digest", "spec": spec, "path": path}
+    xa = _fx_answer(question, convo.tools)             # "how much of the move is FX"
+    if xa is not None:
+        text, spec, path = xa
+        convo.add_external(question, text, source="fx")
+        return {"text": text, "source": "fx", "spec": spec, "path": path}
     fa = _forecast_answer(question, convo.tools)     # "is X abnormal / vs expectation"
     if fa is not None:
         text, spec, path = fa

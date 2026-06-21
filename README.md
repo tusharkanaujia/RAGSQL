@@ -27,10 +27,11 @@ graph/                 optional Neo4j layer for multi-hop relational questions
 docs/                  design plan + semantic layer
 ```
 
-Four answer routes, auto-selected by the question (all grounded in SQL):
-**"is X abnormal / vs expectation"** -> forecast + anomaly (`agent/ml.py`) ·
-**"show X trend"** -> chart spec (`agent/charts.py`) · **relational** (netting/entity
-chains) -> Neo4j graph · **everything else** -> the SQL engine.
+Answer routes, auto-selected by the question (all grounded in SQL):
+**"what's unusual today"** -> anomaly digest · **"how much of the move is FX"** -> FX
+isolation (`agent/attribution.py`) · **"is X abnormal / vs expectation"** -> forecast +
+anomaly (`agent/ml.py`) · **"show X trend"** -> chart spec (`agent/charts.py`) ·
+**relational** (netting/entity chains) -> Neo4j graph · **everything else** -> SQL.
 
 ## Prerequisites
 - Python 3.10+ and the **ODBC Driver 17 for SQL Server**
@@ -57,8 +58,9 @@ anomaly on the latest date, so the whole stack runs offline:
 ```bash
 sqlcmd -S "localhost\MSSQLSERVER2019" -E -b -I -i sql/00_Setup_SputnikCube.sql
 sqlcmd -S "localhost\MSSQLSERVER2019" -E -d SputnikCube -b -I -i sql/LBS_Engine.sql
+sqlcmd -S "localhost\MSSQLSERVER2019" -E -d SputnikCube -b -I -i sql/01_FxRates.sql   # FX isolation
 ```
-(`00_Setup_SputnikCube.sql` is fully rebuildable — re-run it any time to reset.)
+(All three scripts are rebuildable — re-run any time to reset.)
 
 ### Option B — real data
 Run `sql/LBS_Engine.sql` top-to-bottom against an existing `SputnikCube` (VS Code

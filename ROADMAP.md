@@ -48,11 +48,15 @@ Legend: ✅ done · 🟡 in progress · ◻️ planned
 - ✅ **Morning digest** (`/digest`): scans dimensions, ranks today's outliers vs expectation.
 - ◻️ Seasonality/STL (quarter-end window-dressing aware) + IsolationForest (needs sklearn).
 
-## Phase 3 — Market-data / FX enrichment ◻️
+## Phase 3 — Market-data / FX enrichment 🟡
 *Goal: the analytical crown jewel — explain WHY, not just WHERE.*
-- ◻️ Price + FX feed (build against a stub FX table first; swap-ready).
-- ◻️ **5-way attribution**: activity / market(MtM) / FX / collateral / netting + residual.
-- ◻️ FX isolation (revalue prior positions at today's FX).
+- ✅ Stub FX feed (`sql/01_FxRates.sql`, swap-ready) + **FX isolation** (`agent/attribution.py`):
+  splits a move into FX vs non-FX (activity+market), per currency, reconciling exactly;
+  auto-routed ("how much of the move is FX") with an FX-vs-non-FX bar chart.
+- ◻️ Full **5-way attribution** (activity / market / collateral / netting) — needs
+  trade-level price×qty×fx components the fact table doesn't carry yet. (Netting and
+  collateral are already available as line-item / balance-classification splits.)
+- ◻️ Real price + market-data feed (replace the stub).
 
 ## Phase 4 — Document grounding & commentary ◻️
 - ◻️ RAG over policy/desk notes; reconcile claims vs data (confirmed / contradicted /
