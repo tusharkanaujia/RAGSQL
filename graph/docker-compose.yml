@@ -1,0 +1,26 @@
+# Local Neo4j for the LBS graph layer.
+#   docker compose -f graph/docker-compose.yml up -d     # start
+#   docker compose -f graph/docker-compose.yml down      # stop (keeps the named volume)
+#   docker compose -f graph/docker-compose.yml down -v   # stop + delete data
+# Browser UI: http://localhost:7474   (login neo4j / lbsgraph123)
+# Keep the password here in sync with NEO4J_PASSWORD in your .env.
+services:
+  neo4j:
+    image: neo4j:5
+    container_name: lbs-neo4j
+    ports:
+      - "7474:7474"   # HTTP browser
+      - "7687:7687"   # Bolt (driver)
+    environment:
+      NEO4J_AUTH: neo4j/lbsgraph123
+      NEO4J_PLUGINS: '["apoc"]'        # optional; queries here use plain Cypher
+    volumes:
+      - lbs_neo4j_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "cypher-shell -u neo4j -p lbsgraph123 'RETURN 1' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  lbs_neo4j_data:
