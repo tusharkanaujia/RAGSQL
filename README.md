@@ -1,5 +1,12 @@
 # LBS Root-Cause Platform
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+![Python](https://img.shields.io/badge/Python-3.10%2B-blue?logo=python&logoColor=white)
+![SQL Server](https://img.shields.io/badge/SQL%20Server-T--SQL-CC2927?logo=microsoftsqlserver&logoColor=white)
+![Neo4j](https://img.shields.io/badge/Neo4j-5-008CC1?logo=neo4j&logoColor=white)
+![Ollama](https://img.shields.io/badge/LLM-Ollama%20(local)-000000?logo=ollama&logoColor=white)
+![Grounded](https://img.shields.io/badge/numbers-only%20from%20SQL-2ea44f)
+
 Natural-language root-cause analysis over the Leverage Balance Sheet (LBS) for a
 markets business (PB / FIF / EQ). A deterministic SQL engine computes the exact
 attribution; a local LLM (Ollama) narrates the results. Numbers come only from SQL.
