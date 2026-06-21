@@ -14,6 +14,9 @@ attribution; a local LLM (Ollama) narrates the results. Numbers come only from S
 > Runs on **fully synthetic demo data** (a fictional bank, fabricated exposures) —
 > nothing here is real. See `sql/00_Setup_SputnikCube.sql`.
 
+**👉 To install & run on a new machine, follow [SETUP.md](SETUP.md) — a single
+step-by-step runbook (prerequisites → DB → chat → optional Ollama / Neo4j / UI).**
+
 ## Layout
 ```
 sql/LBS_Engine.sql     deterministic engine (calendar, views, top-movers, drill-down, time-series, cube)
