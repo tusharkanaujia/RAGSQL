@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>LBS Root-Cause</title>
+<!-- Vega-Lite for chart rendering (browser-side library fetch; no data leaves the host) -->
+<script src="https://cdn.jsdelivr.net/npm/vega@5"></script>
+<script src="https://cdn.jsdelivr.net/npm/vega-lite@5"></script>
+<script src="https://cdn.jsdelivr.net/npm/vega-embed@6"></script>
+<style>
+  :root { --bg:#0f1419; --panel:#1a2029; --line:#2a323d; --txt:#e6edf3; --muted:#8b98a5;
+          --accent:#1f6feb; --user:#214a7a; --bot:#222b36; }
+  * { box-sizing: border-box; }
+  body { margin:0; height:100vh; display:flex; font:14px/1.5 -apple-system,Segoe UI,Roboto,sans-serif;
+         background:var(--bg); color:var(--txt); }
+  /* left: chat */
+  #left { width:46%; min-width:380px; display:flex; flex-direction:column; border-right:1px solid var(--line); }
+  header { padding:10px 14px; border-bottom:1px solid var(--line); display:flex; gap:8px; align-items:center; }
+  header b { font-size:15px; } header .sp { flex:1; }
+  select, button, input { font:inherit; color:var(--txt); background:var(--panel);
+         border:1px solid var(--line); border-radius:8px; padding:7px 10px; }
+  button { cursor:pointer; } button:hover { border-color:var(--accent); }
+  #msgs { flex:1; overflow:auto; padding:14px; display:flex; flex-direction:column; gap:10px; }
+  .msg { max-width:92%; padding:9px 12px; border-radius:12px; white-space:pre-wrap; }
+  .me  { align-self:flex-end; background:var(--user); border-bottom-right-radius:3px; }
+  .bot { align-self:flex-start; background:var(--bot); border-bottom-left-radius:3px; }
+  .tag { font-size:11px; color:var(--muted); margin-bottom:3px; text-transform:uppercase; letter-spacing:.04em; }
+  .tag.chart{color:#3fb950}.tag.graph{color:#a371f7}.tag.sql{color:#58a6ff}
+  #composer { display:flex; gap:8px; padding:12px; border-top:1px solid var(--line); }
+  #q { flex:1; }
+  /* right: chart */
+  #right { flex:1; display:flex; flex-direction:column; }
+  #chart { flex:1; padding:16px; overflow:auto; }
+  #chart .empty { color:var(--muted); height:100%; display:flex; align-items:center; justify-content:center; text-align:center; }
+  .hint { color:var(--muted); font-size:12px; padding:0 14px 10px; }
+</style>
+</head>
+<body>
+  <div id="left">
+    <header>
+      <b>LBS Root-Cause</b><span class="sp"></span>
+      <select id="convs" title="conversations"></select>
+      <button id="new">＋ New</button>
+    </header>
+    <div id="msgs"></div>
+    <div class="hint">Try: "why is LBS high today?" · "show USD TPA trend" · "netting chain for Citadel LLC"</div>
+    <div id="composer">
+      <input id="q" placeholder="Ask about leverage balance-sheet moves…" autofocus />
+      <button id="send">Send</button>
+    </div>
+  </div>
+  <div id="right">
+    <div id="chart"><div class="empty">Ask a trend question (e.g. "show USD TPA trend")<br/>and the chart appears here.</div></div>
+  </div>
+
+<script>
+const $ = s => document.querySelector(s);
+const msgs = $("#msgs");
+
+function add(role, text, source) {
+  const d = document.createElement("div");
+  d.className = "msg " + (role === "me" ? "me" : "bot");
+  if (source) { const t = document.createElement("div"); t.className = "tag " + source; t.textContent = source; d.appendChild(t); }
+  const body = document.createElement("div"); body.textContent = text; d.appendChild(body);
+  msgs.appendChild(d); msgs.scrollTop = msgs.scrollHeight;
+  return d;
+}
+
+function showChart(spec) {
+  if (!spec) return;
+  $("#chart").innerHTML = "";
+  vegaEmbed("#chart", spec, { actions: false, theme: "dark" })
+    .catch(e => $("#chart").innerHTML = "<div class='empty'>chart error: " + e + "</div>");
+}
+
+async function refreshConvs(selectedId) {
+  const r = await fetch("/api/conversations"); const list = await r.json();
+  const sel = $("#convs"); sel.innerHTML = "";
+  for (const c of list) {
+    const o = document.createElement("option");
+    o.value = c.id; o.textContent = `#${c.id} ${c.title} (${c.turns})`;
+    if (c.id === selectedId) o.selected = true;
+    sel.appendChild(o);
+  }
+}
+
+async function openConv(id) {
+  const r = await fetch(`/api/conversations/${id}/open`, { method: "POST" });
+  const data = await r.json();
+  msgs.innerHTML = "";
+  for (const t of data.turns) { add("me", t.question); add("bot", t.answer); }
+}
+
+async function send() {
+  const q = $("#q").value.trim(); if (!q) return;
+  $("#q").value = ""; add("me", q);
+  const pending = add("bot", "…");
+  try {
+    const r = await fetch("/api/ask", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question: q }) });
+    const data = await r.json();
+    pending.remove();
+    add("bot", data.text, data.source);
+    if (data.spec) showChart(data.spec);
+    refreshConvs(data.conversation_id);
+  } catch (e) { pending.querySelector("div:last-child")?.remove?.(); pending.textContent = "error: " + e; }
+}
+
+$("#send").onclick = send;
+$("#q").addEventListener("keydown", e => { if (e.key === "Enter") send(); });
+$("#new").onclick = async () => {
+  const r = await fetch("/api/conversations", { method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ title: "Untitled" }) });
+  const { id } = await r.json(); msgs.innerHTML = ""; await refreshConvs(id);
+};
+$("#convs").onchange = e => openConv(parseInt(e.target.value));
+
+refreshConvs();
+</script>
+</body>
+</html>

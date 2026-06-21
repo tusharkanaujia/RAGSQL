@@ -20,6 +20,7 @@ sql/LBS_Engine.sql     deterministic engine (calendar, views, top-movers, drill-
 agent/lbs_agent.py     orchestration: wraps procs as tools, plans, narrates (grounded)
 agent/store.py         persistent conversation history (SQLite)
 agent/charts.py        chart tool: trend questions -> Vega-Lite specs (anomaly bands)
+ui/                    optional Flask web UI (two-pane chat + chart canvas)
 config.py              reads connection / Ollama / Neo4j settings from .env
 graph/                 optional Neo4j layer for multi-hop relational questions
 docs/                  design plan + semantic layer
@@ -77,6 +78,16 @@ python agent/lbs_agent.py
 ```
 Each conversation is saved and auto-titled from its first question; `/list` then
 `/open <id>` resumes one with its history restored.
+
+### Web UI (two-pane chat + chart canvas)
+```bash
+pip install flask
+python ui/app.py          # -> http://localhost:5000
+```
+Left pane = chat with a conversation switcher (saved history); right pane renders the
+Vega-Lite chart for trend questions. Each reply is tagged by route (chart / graph /
+sql). Vega-Lite is loaded from a CDN in the browser (a library fetch — no data leaves
+the host); vendor it locally for an air-gapped deployment.
 Scripted multi-turn demo (proves memory + grounding, no typing):
 ```bash
 python agent/lbs_agent.py --demo

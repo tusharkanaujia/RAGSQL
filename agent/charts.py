@@ -189,7 +189,7 @@ def _write_spec(spec: dict, filters: dict) -> str:
 
 
 def chart_answer(question: str, tools: Tools):
-    """Return (summary_text, spec_path) for a trend question, or None if it isn't one."""
+    """Return (summary_text, vega_spec, spec_path) for a trend question, or None."""
     if not is_chart_request(question):
         return None
     filters = extract_filters(question, tools)
@@ -197,7 +197,7 @@ def chart_answer(question: str, tools: Tools):
     rows = series_data(tools.db, filters, resolution)
     spec = vega_spec(rows, filters, resolution)
     path = _write_spec(spec, filters)
-    return summarize(rows, filters, resolution), path
+    return summarize(rows, filters, resolution), spec, path
 
 
 # --------------------------------------------------------------------------- #
@@ -207,6 +207,6 @@ if __name__ == "__main__":
     if res is None:
         print("[not a chart request] try e.g.  python agent/charts.py \"USD TPA trend\"")
     else:
-        summary, path = res
+        summary, _spec, path = res
         print(summary)
         print(f"[chart spec saved: {path}]")

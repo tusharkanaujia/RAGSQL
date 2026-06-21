@@ -570,12 +570,28 @@ def _graph_answer(question: str) -> str | None:
 
 
 def _chart_answer(question: str, tools: "Tools"):
-    """Try the chart tool; returns (summary, spec_path) for a trend question, else None."""
+    """Try the chart tool; returns (summary, spec, path) for a trend question, else None."""
     try:
         from agent.charts import chart_answer
         return chart_answer(question, tools)
     except Exception:
         return None
+
+
+def route_question(convo: "Conversation", question: str) -> dict:
+    """Single routing entry point used by the UI (and shareable by the REPL):
+    trend -> chart, relational -> graph, else -> SQL. Records the turn + returns
+    {text, source, spec}. Numbers always originate from SQL."""
+    ca = _chart_answer(question, convo.tools)
+    if ca is not None:
+        summary, spec, _path = ca
+        convo.add_external(question, summary, source="chart")
+        return {"text": summary, "source": "chart", "spec": spec}
+    g = _graph_answer(question)
+    if g is not None:
+        convo.add_external(question, g, source="graph")
+        return {"text": g, "source": "graph", "spec": None}
+    return {"text": convo.ask(question), "source": "sql", "spec": None}
 
 
 _HELP = """Commands:
@@ -673,7 +689,7 @@ def chat_repl():
         # --- answer the question ----------------------------------------- #
         ca = _chart_answer(q, convo.tools)      # trend/plot -> chart spec (grounded)
         if ca is not None:
-            summary, path = ca
+            summary, _spec, path = ca
             print(f"lbs> {summary}\n     [chart spec: {path}]\n")
             convo.add_external(q, summary, source="chart")
             continue

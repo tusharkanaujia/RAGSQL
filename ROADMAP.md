@@ -23,7 +23,7 @@ Legend: ✅ done · 🟡 in progress · ◻️ planned
 - ✅ Optional Neo4j graph layer for multi-hop relational questions (netting/entity
   chains).
 
-## Phase 1 — Make it a product 🟡
+## Phase 1 — Make it a product ✅
 *Goal: durable conversations + a visual surface.*
 - ✅ **1a. Persistent chat history** (SQLite, `agent/store.py`): save / list / resume /
   rename / delete conversations across restarts; auto-titled from the first question;
@@ -31,9 +31,10 @@ Legend: ✅ done · 🟡 in progress · ◻️ planned
 - ✅ 1b. **Chart-spec tool** (`agent/charts.py`): trend questions ("show USD TPA trend",
   "plot derivatives over time", "Citadel month-end") → a grounded time series with
   z-score **anomaly bands** + a **Vega-Lite** spec; auto-routed in chat.
-- ◻️ 1c. **Two-pane UI** — chat + live chart canvas (waterfall for attribution,
-  time-series with anomaly bands, treemap for concentration, Sankey for
-  netting/collateral). Click-a-contributor → drill.
+- ✅ 1c. **Two-pane web UI** (`ui/`, Flask + Vega-Lite): chat pane + live chart canvas;
+  conversation switcher with saved history; the three routes (chart/graph/SQL) tagged
+  per message. *Follow-on ◻️: richer chart types (waterfall/treemap/Sankey) and
+  click-a-contributor → drill.*
 
 ## Phase 2 — Smart baselines (ML) ◻️
 *Goal: "high vs **expectation**", not just vs yesterday. + quarter-end resolution.*

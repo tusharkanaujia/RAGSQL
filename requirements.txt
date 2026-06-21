@@ -2,3 +2,4 @@ pyodbc>=5.0
 requests>=2.31
 python-dotenv>=1.0
 neo4j>=5.0          # optional — graph layer for multi-hop relational questions
+flask>=3.0          # optional — web UI (ui/app.py)
