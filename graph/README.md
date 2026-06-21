@@ -68,6 +68,9 @@ docker run -d --name lbs-neo4j -p 7474:7474 -p 7687:7687 \
   `docker rm -f lbs-neo4j` to wipe and start fresh.
 - Or use `docker compose up -d` with the `docker-compose.yml` in this folder.
 
+> **No Docker?** See [SETUP_NO_DOCKER.md](SETUP_NO_DOCKER.md) for Neo4j Desktop /
+> Community Server / Aura — the app is identical, only `.env` changes.
+
 ### Option B — Neo4j Desktop (recommended if you don't have Docker)
 1. Install Neo4j Desktop (Windows GUI). It **bundles Java** — nothing else to install.
 2. Create a local DBMS, set a password, click **Start**.
