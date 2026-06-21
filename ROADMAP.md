@@ -1,0 +1,78 @@
+# Roadmap — LBS Root-Cause Platform
+
+Natural-language root-cause analysis + commentary over a Leverage Balance Sheet
+data warehouse (SQL Server star schema, ~5M rows/day, one pre-signed measure).
+
+**Architecture principle (holds across every phase):**
+> The deterministic SQL engine computes the **numbers**. ML/agents produce only
+> **expectations, flags, prose, and chart specs** — never the reported figures.
+> Every figure in any answer traces back to a SQL result. This separation is what
+> makes the output trustworthy in a regulated setting.
+
+Legend: ✅ done · 🟡 in progress · ◻️ planned
+
+---
+
+## Phase 0 — Foundation ✅
+- ✅ Synthetic `SputnikCube` (rebuildable) + deterministic engine: calendar,
+  top-movers, drill-path (Business→SubDivision→Counterparty→Currency→ISIN),
+  time-series with z-score, nightly cube.
+- ✅ Grounded chat: history-aware planner, token-substitution narration, hard guard
+  rejecting any fabricated figure, deterministic template fallback.
+- ✅ In-session conversation memory (follow-up resolution).
+- ✅ Optional Neo4j graph layer for multi-hop relational questions (netting/entity
+  chains).
+
+## Phase 1 — Make it a product 🟡
+*Goal: durable conversations + a visual surface.*
+- ✅ **1a. Persistent chat history** (SQLite, `agent/store.py`): save / list / resume /
+  rename / delete conversations across restarts; auto-titled from the first question;
+  graph turns persisted too.
+- ◻️ 1b. **Chart-spec tool** — a tool that returns a Vega-Lite/Plotly spec so "show USD
+  TPA trend" produces a chart, not just numbers.
+- ◻️ 1c. **Two-pane UI** — chat + live chart canvas (waterfall for attribution,
+  time-series with anomaly bands, treemap for concentration, Sankey for
+  netting/collateral). Click-a-contributor → drill.
+
+## Phase 2 — Smart baselines (ML) ◻️
+*Goal: "high vs **expectation**", not just vs yesterday. + quarter-end resolution.*
+- ◻️ Forecast baseline (ETS/Prophet) → expected level + confidence band.
+- ◻️ Multi-method anomaly (z-score ✅ + IQR + MAD + IsolationForest + STL-residual),
+  daily & month-end, quarter-end-aware; agreement vote to cut false positives.
+- ◻️ Changepoint detection (ruptures) on counterparty/desk/currency trends.
+- ◻️ Seasonality/STL (window-dressing aware).
+- ◻️ Anomaly → auto-explanation (flag triggers drill + attribution) + morning digest.
+
+## Phase 3 — Market-data / FX enrichment ◻️
+*Goal: the analytical crown jewel — explain WHY, not just WHERE.*
+- ◻️ Price + FX feed (build against a stub FX table first; swap-ready).
+- ◻️ **5-way attribution**: activity / market(MtM) / FX / collateral / netting + residual.
+- ◻️ FX isolation (revalue prior positions at today's FX).
+
+## Phase 4 — Document grounding & commentary ◻️
+- ◻️ RAG over policy/desk notes; reconcile claims vs data (confirmed / contradicted /
+  unexplained). Treat doc text as data, not instructions.
+- ◻️ Auto-commentary: post-batch daily LBS draft from cube + anomalies + market data.
+
+## Phase 5 — Agentic & self-serve ◻️
+- ◻️ Iterative agent loop (re-query/drill until the residual is explained).
+- ◻️ Multi-agent: planner · SQL-analyst · graph-analyst · ML-analyst · narrator · critic.
+- ◻️ Grounded free-form text-to-SQL (semantic-layer + whitelist constrained, read-only).
+- ◻️ Eval harness: golden questions with known answers (regression-test before trust).
+
+## Cross-cutting ◻️
+- ◻️ Semantic layer as code (powers safe text-to-SQL + renames).
+- ◻️ Audit & lineage (every query + figure logged) — regulated context.
+- ◻️ Access control / row-level security per desk/entity.
+- ◻️ Concentration (Herfindahl/top-N) + limit-proximity tools.
+- ◻️ Nightly precompute expansion for instant morning chat.
+
+---
+
+### Suggested build order
+1. **Phase 1a → 1b → 1c** (persistent history → chart tool → UI) — turns the engine
+   into a usable product.
+2. **Phase 2** (forecast + anomaly) — makes "why is it high" genuinely smart.
+3. **Phase 3** (attribution + FX) — needs a feed; highest analytical value.
+4. **Phase 4** (docs + auto-commentary).
+5. **Phase 5** (agentic + text-to-SQL + eval).

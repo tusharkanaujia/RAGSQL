@@ -57,14 +57,20 @@ mssql extension or SSMS). Objects build in dependency order. Uncomment the
 smoke-test block at the bottom to validate against a real `BusinessDate`.
 
 ## Run
-Interactive chat (with memory — ask follow-ups in the same session):
+Interactive chat — with **memory** (follow-ups) and **persistent history** (saved to
+a local SQLite `chat_history.db`, so you can resume past chats):
 ```bash
 python agent/lbs_agent.py
 #   you> Why is my LBS high today?
-#   you> Drill into that counterparty
+#   you> Drill into that counterparty        # follow-up uses prior context
 #   you> Now show me the month-end picture
-# commands: /reset  /history  /exit
+#
+# conversation commands:
+#   /new [title]   /list   /open <id>   /title <text>   /delete <id>
+#   /history   /reset   /graph <q>   /help   /exit
 ```
+Each conversation is saved and auto-titled from its first question; `/list` then
+`/open <id>` resumes one with its history restored.
 Scripted multi-turn demo (proves memory + grounding, no typing):
 ```bash
 python agent/lbs_agent.py --demo

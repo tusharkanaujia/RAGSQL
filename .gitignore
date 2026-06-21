@@ -24,3 +24,8 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Local chat history (SQLite)
+*.db
+*.sqlite
+*.sqlite3

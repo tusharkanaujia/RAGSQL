@@ -464,19 +464,33 @@ class Conversation:
     """Stateful chat over the LBS engine. Holds per-turn history so the planner and
     narrator can resolve follow-ups ('drill into that counterparty', 'now month-end')."""
 
-    def __init__(self, db: DB | None = None, max_history: int = 4):
+    def __init__(self, db: DB | None = None, max_history: int = 4,
+                 store=None, conversation_id: int | None = None):
         self.tools = Tools(db or DB())
         self.turns: list[Turn] = []
         self.max_history = max_history
+        self.store = store                       # optional ChatStore for persistence
+        self.conversation_id = conversation_id
         # one-time vocabulary so the planner can map words -> exact filter values
         self.vocab = {dim: self.tools.dim_values(dim)
                       for dim in ("Business", "LineItem", "Currency",
                                   "Counterparty", "LegalEntity")}
+        if store and conversation_id and store.exists(conversation_id):
+            self.load_conversation(conversation_id)
 
     def _history(self) -> str:
         recent = self.turns[-self.max_history:]
         return "\n".join(f"Q{i+1}: {t.question}\nA{i+1}: {t.digest}"
                          for i, t in enumerate(recent))
+
+    # --- persistence-aware turn recording -------------------------------- #
+    def _record(self, question: str, digest: str, answer: str, source: str):
+        if self.store and self.conversation_id:
+            if not self.turns:                   # first turn titles the conversation
+                title = question if len(question) <= 60 else question[:57] + "..."
+                self.store.rename(self.conversation_id, title)
+            self.store.add_turn(self.conversation_id, question, digest, answer, source)
+        self.turns.append(Turn(question, digest, answer))
 
     def ask(self, question: str) -> str:
         history = self._history()
@@ -491,10 +505,28 @@ class Conversation:
             narration += ("\n\n[!] Line-item contributions did not reconcile to the "
                           "total — investigate.")
 
-        self.turns.append(Turn(question, _template_narrative(ev), narration))
+        self._record(question, _template_narrative(ev), narration, "sql")
         return narration
 
+    def add_external(self, question: str, answer: str, source: str = "graph"):
+        """Record a turn answered outside ask() (e.g. the graph layer) so memory +
+        persistence stay coherent."""
+        self._record(question, answer.split("\n")[0], answer, source)
+
+    # --- conversation lifecycle (persistence) ---------------------------- #
+    def new_conversation(self, title: str = "Untitled") -> int | None:
+        self.turns = []
+        if self.store:
+            self.conversation_id = self.store.create(title)
+        return self.conversation_id
+
+    def load_conversation(self, conversation_id: int):
+        self.conversation_id = conversation_id
+        self.turns = [Turn(t["question"], t["digest"], t["answer"])
+                      for t in self.store.turns(conversation_id)] if self.store else []
+
     def reset(self):
+        """Clear in-memory planner context (does not delete the stored conversation)."""
         self.turns.clear()
 
 
@@ -532,11 +564,37 @@ def _graph_answer(question: str) -> str | None:
         return None
 
 
+_HELP = """Commands:
+  /new [title]     start a new saved conversation
+  /list            list saved conversations
+  /open <id>       resume a saved conversation (loads its history)
+  /title <text>    rename the current conversation
+  /delete <id>     delete a saved conversation
+  /history         show this conversation's turns
+  /reset           clear in-memory context (keeps the saved conversation)
+  /graph <q>       force the question to the Neo4j graph layer
+  /help            show this help
+  /exit            quit
+"""
+
+
 def chat_repl():
     print("LBS root-cause chat. Ask about leverage balance-sheet moves.")
     print("Relational questions (netting/collateral/entity chains) auto-route to the graph.")
-    print("Commands: /reset  /history  /graph <q>  /exit\n")
-    convo = Conversation()
+    print(_HELP)
+
+    store = None
+    try:
+        from agent.store import ChatStore
+        store = ChatStore()
+    except Exception as e:
+        print(f"(history disabled: {e})\n")
+
+    convo = Conversation(store=store)
+    convo.new_conversation()                      # start fresh; titled on first question
+    if store:
+        print(f"(new conversation #{convo.conversation_id} — /list to see past ones)\n")
+
     while True:
         try:
             q = input("you> ").strip()
@@ -547,23 +605,70 @@ def chat_repl():
             continue
         if q in ("/exit", "/quit"):
             break
+        if q in ("/help", "/?"):
+            print(_HELP); continue
         if q == "/reset":
-            convo.reset(); print("(memory cleared)\n"); continue
+            convo.reset(); print("(in-memory context cleared)\n"); continue
         if q == "/history":
-            for t in convo.turns:
-                print(f"  Q: {t.question}\n     {t.digest}")
+            if not convo.turns:
+                print("  (no turns yet)\n")
+            for i, t in enumerate(convo.turns, 1):
+                print(f"  {i}. Q: {t.question}\n     {t.digest}")
             print(); continue
 
+        # --- persistence commands ---------------------------------------- #
+        if store and (q == "/new" or q.startswith("/new ")):
+            title = q[5:].strip() or "Untitled"
+            cid = convo.new_conversation(title)
+            print(f"(started conversation #{cid})\n"); continue
+        if store and q == "/list":
+            rows = store.list()
+            if not rows:
+                print("  (no saved conversations)\n")
+            for c in rows:
+                mark = "*" if c.id == convo.conversation_id else " "
+                print(f" {mark}#{c.id}  {c.title}  ({c.turn_count} turns, {c.updated_at})")
+            print(); continue
+        if store and q.startswith("/open "):
+            arg = q[6:].strip()
+            if arg.isdigit() and store.exists(int(arg)):
+                convo.load_conversation(int(arg))
+                print(f"(opened #{arg} — {len(convo.turns)} turns restored)\n")
+            else:
+                print("  no such conversation id\n")
+            continue
+        if store and q.startswith("/title "):
+            title = q[7:].strip()
+            if title and convo.conversation_id:
+                store.rename(convo.conversation_id, title)
+                print(f"(renamed to: {title})\n")
+            continue
+        if store and q.startswith("/delete "):
+            arg = q[8:].strip()
+            if arg.isdigit() and store.exists(int(arg)):
+                store.delete(int(arg))
+                print(f"(deleted #{arg})")
+                if int(arg) == convo.conversation_id:
+                    convo.new_conversation(); print(f"(now on new #{convo.conversation_id})")
+                print()
+            else:
+                print("  no such conversation id\n")
+            continue
+
+        # --- answer the question ----------------------------------------- #
         forced = q.startswith("/graph ")
         gq = q[len("/graph "):].strip() if forced else q
         g = _graph_answer(gq)
         if g is not None:                       # relational -> Neo4j (numbers from SQL)
             print(g + "\n")
-            convo.turns.append(Turn(gq, g.split("\n")[0], g))   # keep memory coherent
+            convo.add_external(gq, g, source="graph")   # persisted + in memory
             continue
         if forced:
             print("[graph] not a relational question, or graph unavailable.\n"); continue
         print(f"lbs> {convo.ask(q)}\n")         # everything else -> SQL engine
+
+    if store:
+        store.close()
 
 
 if __name__ == "__main__":
